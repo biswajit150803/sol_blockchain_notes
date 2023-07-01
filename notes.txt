@@ -1,0 +1,163 @@
+  There are two types of reading functions:
+
+  view: Accessing state variables
+  pure: Not accessing state variables
+
+ SPDX-License-Identifier: MIT
+
+  pragma solidity 0.8.15;
+
+  contract ExampleViewPure {
+
+      uint public myStorageVariable;
+
+      function setMyStorageVariable(uint _newVar) public returns(uint) {
+          myStorageVariable = _newVar;
+          return _newVar;
+      }
+  }
+
+  A writing function can have return variables, but they won't actually return anything to the transaction initializer. There are several reason for it, but the most prominent one is: at the time of sending the transaction the actual state is unknown. It is possible that someone sends a competing transaction that alters the state and from there it only depends on the transaction ordering - which is something that happens on the miner sideWhat's the return variable for then?
+  It's for Smart Contract communication. It is used to return something when a smart contract calls another smart contract function.
+
+  A view function is a function that reads from the state but doesn't write to the state. A classic view function woule be a getter-function
+
+  function getMyStorageVariable() public view returns(uint) {
+      return myStorageVariable;
+  }
+
+  A pure function is a function that neither writes, nor reads from state variables. It can only access its own arguments and other pure functions.
+
+  function getAddition(uint a, uint b) public pure returns(uint) {
+      return a+b;
+  }
+
+  The payable modifier tells solidity that the function is expecting eth to receive
+
+ SPDX-License-Identifier: MIT
+
+  pragma solidity 0.8.15;
+
+  contract SampleContract {
+      string public myString = "Hello World";
+
+      function updateString(string memory _newString) public payable {
+          myString = _newString;
+      }
+  }
+
+
+  The msg-object contains information about the current message with the smart contract. It's a global variable that can be accessed in every function. It contains information about the sender, the value of the transaction, the data of the transaction, the address of the smart contract, and more.
+
+ SPDX-License-Identifier: MIT
+
+  pragma solidity 0.8.15;
+
+  contract SampleContract {
+      string public myString = "Hello World";
+
+      function updateString(string memory _newString) public payable {
+          if(msg.value == 1 ether) {
+              myString = _newString;
+          } else {
+              payable(msg.sender).transfer(msg.value);
+          }
+      }
+  }
+
+
+  receive() is a function that gets priority over fallback() when a calldata is empty. But fallback gets precedence over receive when calldata does not fit a valid function signature.
+
+ SPDX-License-Identifier: MIT
+
+  pragma solidity 0.8.15;
+
+  contract SampleFallback {
+      uint public lastValueSent;
+      string public lastFunctionCalled;
+
+      receive() external payable {
+          lastValueSent = msg.value;
+          lastFunctionCalled = "receive";
+      }
+
+      fallback() external payable {
+          lastValueSent = msg.value;
+          lastFunctionCalled = "fallback";
+      }
+  }
+
+
+  The constructor is a special function. It is automatically called during Smart Contract deployment. And it can never be called again after that.constructor(): is a special function that is called only once during contract deployment. It can have arguments, like here. But it also has the same global objects available as in any other transaction. So in msg.sender is the address of the person who deployed the Smart Contract, which you can use.
+
+  It also has a special name! It's simply called constructor() { ... }.
+
+ SPDX-License-Identifier: MIT
+
+  pragma solidity 0.8.15;
+
+  contract ExampleConstructor {
+
+      address public myAddress;
+
+      constructor(address _someAddress) {
+          myAddress = _someAddress;
+      }
+
+      function setMyAddress(address _myAddress) public {
+          myAddress = _myAddress;
+      }
+      function setMyAddressToMsgSender() public {
+          myAddress = msg.sender;
+      }
+
+  }
+
+If you want to interact with a smart contract from web3js, you need two things:
+
+the ABI array
+the contract address (or you deploy the contract through web3js)
+Add the following script and add the address of your contract from the Deploy & Send Transactions plugin
+
+
+(async() => {
+
+    const address = "ENTER_ADDRESS_HERE_FROM_RUN_TX_PLUGIN";
+    const abi = [
+    {
+        "inputs": [],
+        "name": "myUint",
+        "outputs": [
+            {
+                "internalType": "uint256",
+                "name": "",
+                "type": "uint256"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "internalType": "uint256",
+                "name": "newUint",
+                "type": "uint256"
+            }
+        ],
+        "name": "setMyUint",
+        "outputs": [],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    }
+];
+
+
+    let contractInstance = new web3.eth.Contract(abi, address);
+
+    console.log(await contractInstance.methods.myUint().call());
+    let accounts = await web3.eth.getAccounts();
+    await contractInstance.methods.setMyUint(345).send({from: accounts[0]});
+
+    console.log(await contractInstance.methods.myUint().call());
+})()
